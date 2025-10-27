@@ -46,39 +46,27 @@ public class DettaglioOrdineDAO {
 		}
 		return null;
 	}
-	
-	// --- METODO AGGIUNTO PER IL BATCH DI FATTURAZIONE ---
-    /**
-     * Recupera tutti i DettagliOrdine associati a un specifico CodiceOrdine.
-     * Non chiude la Connection.
-     * * @param codiceOrdine Il codice dell'Ordine.
-     * @param conn La connessione al database.
-     * @return Una List di DettaglioOrdine.
-     */
-    public List<DettaglioOrdine> recuperaDettagliPerOrdine(int codiceOrdine, Connection conn) throws SQLException {
-        List<DettaglioOrdine> dettagli = new ArrayList<>();
-        
-        // Selezioniamo tutti i campi necessari per ricostruire l'entità DettaglioOrdine
-        String sql = "SELECT codice_ordine, progressivo, codice_prodotto, quantita_ordinata, totale_riga_calcolato " + 
-                     "FROM dettaglio_ordine WHERE codice_ordine = ? ORDER BY progressivo ASC";
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, codiceOrdine);
+	public List<DettaglioOrdine> recuperaDettagliPerOrdine(int codiceOrdine, Connection conn) throws SQLException {
+		List<DettaglioOrdine> dettagli = new ArrayList<>();
 
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    dettagli.add(new DettaglioOrdine(
-                        rs.getInt("codice_ordine"), 
-                        rs.getInt("progressivo"),
-                        rs.getInt("codice_prodotto"), 
-                        rs.getInt("quantita_ordinata"),
-                        rs.getDouble("totale_riga_calcolato")
-                    ));
-                }
-            }
-        }
-        return dettagli;
-    }
+		// Selezioniamo tutti i campi necessari per ricostruire l'entità DettaglioOrdine
+		String sql = "SELECT codice_ordine, progressivo, codice_prodotto, quantita_ordinata, totale_riga_calcolato "
+				+ "FROM dettaglio_ordine WHERE codice_ordine = ? ORDER BY progressivo ASC";
+
+		try (PreparedStatement ps = conn.prepareStatement(sql)) {
+			ps.setInt(1, codiceOrdine);
+
+			try (ResultSet rs = ps.executeQuery()) {
+				while (rs.next()) {
+					dettagli.add(new DettaglioOrdine(rs.getInt("codice_ordine"), rs.getInt("progressivo"),
+							rs.getInt("codice_prodotto"), rs.getInt("quantita_ordinata"),
+							rs.getDouble("totale_riga_calcolato")));
+				}
+			}
+		}
+		return dettagli;
+	}
 
 	public DettaglioOrdine recuperaUno(int codiceOrdine, int progressivo) {
 		Connection conn = null;
@@ -191,8 +179,6 @@ public class DettaglioOrdineDAO {
 
 	public boolean calcolaTotaleRiga(int codiceOrdine, int progressivo, int codiceProdotto, java.util.Date dataOrdine,
 			Connection conn, double moltiplicatoreSconto) throws SQLException {
-
-		// ... (La query SQL deve essere quella corretta sopra)
 
 		String sql = "UPDATE DETTAGLIO_ORDINE d "
 				+ "SET totale_riga_calcolato = d.quantita_ordinata * pp.prezzo * (1 + pp.iva / 100.0) * ? "

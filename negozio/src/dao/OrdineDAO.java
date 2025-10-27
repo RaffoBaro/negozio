@@ -57,7 +57,7 @@ public class OrdineDAO {
 	/** Recupera tutti gli ordini con fatturato = false e popola l'oggetto Ordine. */
     public List<Ordine> recuperaOrdiniDaFatturare(Connection conn) throws SQLException {
         List<Ordine> ordini = new ArrayList<>();
-        // In una vera applicazione, si farebbe SELECT di tutti i campi
+   
         String sql = "SELECT codice_ordine, data_ordine, totale_ordine_calcolato, codice_cliente, fatturato FROM ordine WHERE fatturato = false"; 
         
         try (Statement stmt = conn.createStatement();
