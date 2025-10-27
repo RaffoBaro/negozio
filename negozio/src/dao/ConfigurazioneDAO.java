@@ -86,24 +86,17 @@ public class ConfigurazioneDAO {
 	}
 
 	
-	// --- METODO AGGIUNTO/CORRETTO PER IL BATCH ---
-    /** * Recupera le configurazioni SMTP essenziali dal DB.
-     * Non chiude la Connection.
-     * @param conn La connessione al database fornita dal chiamante (FatturazioneBatch).
-     * @return Una Map<String, String> contenente CHIAVE e VALORE.
-     * @throws SQLException se la connessione fallisce o mancano le chiavi essenziali.
-     */
+
     public Map<String, String> recuperaConfigurazioniEmail(Connection conn) throws SQLException {
         
-        // Le chiavi da recuperare sono quelle che hai mostrato: 
-        // SMTP_HOST, SMTP_PORT, EMAIL_SENDER_USERNAME, EMAIL_SENDER_PASSWORD
+ 
         String sql = "SELECT chiave, valore FROM configurazione WHERE chiave IN (?, ?, ?, ?)";
         
         Map<String, String> configMap = new HashMap<>();
         
         // Uso try-with-resources per chiudere PreparedStatement e ResultSet
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            // Imposta i parametri delle chiavi
+            
             ps.setString(1, "SMTP_HOST");
             ps.setString(2, "SMTP_PORT");
             ps.setString(3, "EMAIL_SENDER_USERNAME");
