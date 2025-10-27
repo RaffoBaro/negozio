@@ -82,9 +82,6 @@ public class ClienteDAO {
 					rs.close();
 				if (ps != null)
 					ps.close();
-				if (currentConn != null) {
-					currentConn.close();
-				}
 			} catch (SQLException se) {
 				se.printStackTrace();
 			}
