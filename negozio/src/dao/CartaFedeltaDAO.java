@@ -10,6 +10,8 @@ import java.util.List;
 import entities.CartaFedelta;
 
 
+//PROVA GIT
+
 public class CartaFedeltaDAO {
 
 	public CartaFedeltaDAO() throws SQLException {
