@@ -30,11 +30,10 @@ public class FatturaService {
 	private float tableYPosition = 0;
 
 	/**
-	 * Crea il contenuto del PDF della fattura in memoria (byte array) usando
-	 * PDFBox.
+	 * Creo il contenuto del PDF della fattura usando PDFBox.
 	 */
 	public byte[] creaFatturaPDFContent(Ordine ordine, Cliente cliente,
-			// 🛑 NUOVA FIRMA: ACCETTA LA MAPPA 🛑
+
 			Map<DettaglioOrdine, Prodotto> dettagliConProdotti) throws Exception {
 
 		System.out.println("✅ Generazione contenuto PDF con layout grafico per Ordine " + ordine.getCodiceOrdine()
@@ -169,7 +168,7 @@ public class FatturaService {
 		contents.beginText();
 		contents.newLineAtOffset(currentX + colWidths[1]
 				- (getScaledStringWidth("PREZZO UN.", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)), y);
-		contents.showText("PREZZO UN.");
+		contents.showText("PREZZO UNITARIO");
 		contents.endText();
 		currentX += colWidths[1];
 		contents.beginText();
