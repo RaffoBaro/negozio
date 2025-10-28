@@ -40,7 +40,7 @@ public class FatturazioneBatch {
 			Map<String, String> smtpConfig = configurazioneDao.recuperaConfigurazioniEmail(configConn);
 			configConn.close();
 
-			// Definisco i parametri per chiarezza
+			// Definisco i parametri
 			final String SMTP_HOST = smtpConfig.get("SMTP_HOST");
 			final String SMTP_PORT = smtpConfig.get("SMTP_PORT");
 			final String SMTP_USER = smtpConfig.get("EMAIL_SENDER_USERNAME");
@@ -50,7 +50,7 @@ public class FatturazioneBatch {
 			
 			System.out.println("✅ Configurazione SMTP caricata: " + SMTP_HOST + ":" + SMTP_PORT);
 
-			// 2. ESECUZIONE DEL PROCESSO DI FATTURAZIONE
+			
 			processaFatturazione(SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, ordineDao, clienteDao, fatturaDao,
 					fatturaService, dettaglioOrdineDao);
 
@@ -61,7 +61,7 @@ public class FatturazioneBatch {
 	}
 
 	/**
-	 * Cicla sugli ordini da fatturare, gestendo la transazione per ciascuno.
+	 * Cicla sugli ordini da fatturare gestendo la transazione per ciascuno
 	 */
 	private static void processaFatturazione(String smtpHost, String smtpPort, String smtpUser, String smtpPass,
 			OrdineDAO ordineDao, ClienteDAO clienteDao, FatturaDAO fatturaDao, FatturaService fatturaService,
@@ -84,7 +84,7 @@ public class FatturazioneBatch {
 				currentConn = ConnessioneDB.getConnessione();
 				currentConn.setAutoCommit(false);
 
-				// 1. Recupera dati
+				
 				int codiceCliente = ordine.getCodiceCliente();
 				Cliente cliente = clienteDao.recuperaUno(codiceCliente, currentConn);
 				List<DettaglioOrdine> dettagliOriginali = dettaglioOrdineDao
@@ -113,14 +113,14 @@ public class FatturazioneBatch {
 		                // Associa il DettaglioOrdine (chiave) all'oggetto Prodotto (valore)
 		                dettagliConProdotti.put(dettaglio, prodotto);
 		            } else {
-		                // Gestione caso limite: Prodotto non trovato
+		                // Gestione caso : Prodotto non trovato
 		                System.err.println("ATTENZIONE: Prodotto ID " + dettaglio.getCodiceProdotto() + " non trovato nel DB. ROLLBACK.");
 		                currentConn.rollback();
 		               
 		            }
 		        }
 		        
-		        // 3. Generazione PDF: PASSA LA MAPPA ARRICCHITA
+		     
 		        byte[] pdfContent = fatturaService.creaFatturaPDFContent(ordine, cliente, dettagliConProdotti);
 
 				// 3. Salva la Fattura nel DB
@@ -141,15 +141,15 @@ public class FatturazioneBatch {
 				// 5. Commit sul DB (se tutto è riuscito)
 				currentConn.commit();
 
-				// 6. Invia la mail (Fuori dalla transazione DB)
+				
 				tempPdfPath = salvaInFileTemporaneo(pdfContent, codiceOrdine);
 
-				// CHIAMATA CORRETTA: 8 ARGOMENTI TOTALI
+				
 				EmailService.sendEmailWithAttachment(smtpHost, smtpPort, smtpUser, smtpPass, cliente.getEmail(),
 						"La tua fattura n. " + anno + "/" + progressivo,
 						"In allegato trovi la tua fattura per l'ordine " + codiceOrdine + ".", tempPdfPath);
 
-				System.out.println("  ✅ Ordine " + codiceOrdine + " fatturato (A:" + anno + ", P:" + progressivo
+				System.out.println("  ✅ Ordine " + codiceOrdine + " fatturato (ANNO:" + anno + ", PROGR.:" + progressivo
 						+ ") e email inviata.");
 
 			} catch (Exception e) {
