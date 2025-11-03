@@ -145,7 +145,7 @@ public class FatturazioneBatch {
 				tempPdfPath = salvaInFileTemporaneo(pdfContent, codiceOrdine);
 
 				
-				EmailService.sendEmailWithAttachment(smtpHost, smtpPort, smtpUser, smtpPass, cliente.getEmail(),
+				EmailService.inviaFatturazione(smtpHost, smtpPort, smtpUser, smtpPass, cliente.getEmail(),
 						"La tua fattura n. " + anno + "/" + progressivo,
 						"In allegato trovi la tua fattura per l'ordine " + codiceOrdine + ".", tempPdfPath);
 
