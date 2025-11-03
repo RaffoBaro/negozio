@@ -4,20 +4,17 @@ import entities.Ordine;
 import entities.Cliente;
 import entities.DettaglioOrdine;
 import entities.Prodotto;
+import entities.Sconti;
+
 import java.util.Map;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
-
-import dao.ConnessioneDB;
-import dao.FatturaDAO;
-
 import java.awt.Color;
 
 public class FatturaService {
@@ -30,12 +27,15 @@ public class FatturaService {
 
 	private float tableYPosition = 0;
 
+	// 1. FIRMA AGGIORNATA: Ora accetta Sconti
 	public byte[] creaFatturaPDFContent(Ordine ordine, Cliente cliente,
+			Map<DettaglioOrdine, Prodotto> dettagliConProdotti, int anno, int progressivo, Sconti scontoApplicato)
+			throws Exception {
 
-			Map<DettaglioOrdine, Prodotto> dettagliConProdotti) throws Exception {
+		System.out.println("✅ Generazione contenuto PDF per Ordine " + ordine.getCodiceOrdine() + " (usando PDFBox)\n");
 
-		System.out.println("✅ Generazione contenuto PDF per Ordine " + ordine.getCodiceOrdine()
-				+ "\n");
+		// Calcolo la percentuale di sconto (0 se scontoApplicato è null)
+		final int percentualeSconto = (scontoApplicato != null) ? scontoApplicato.getSconto() : 0;
 
 		try (PDDocument document = new PDDocument()) {
 			PDPage page = new PDPage();
@@ -70,16 +70,14 @@ public class FatturaService {
 				contents.beginText();
 				contents.setFont(PDType1Font.HELVETICA, FONT_SIZE_NORMAL);
 				contents.newLineAtOffset(MARGIN, yPosition);
-				contents.showText(cliente.getNome() + " (" + cliente.getEmail() + ")");
+				contents.showText(cliente.getNome() + " " + cliente.getCognome());
 				contents.endText();
 				float rightCol = width - MARGIN - 200;
 				yPosition += LEADING;
 				contents.beginText();
 				contents.setFont(PDType1Font.HELVETICA_BOLD, FONT_SIZE_NORMAL);
 				contents.newLineAtOffset(rightCol, yPosition);
-				Connection conn =  ConnessioneDB.getConnessione();
-				FatturaDAO fatturaDao = new FatturaDAO();
-				contents.showText("Fattura n°: " + fatturaDao.getNextProgressivo(conn));
+				contents.showText("Fattura n°: " + progressivo + " / " + anno);
 				contents.endText();
 				yPosition -= LEADING;
 				contents.beginText();
@@ -92,17 +90,22 @@ public class FatturaService {
 				tableYPosition = yPosition;
 
 				// --- 3. TABELLA DEI DETTAGLI DELL'ORDINE ---
-				float[] colWidths = { 250, 80, 50, 80 };
+				// Larghezze AGGIORNATE: Desc(200), P.Unitario(70), Q.tà(40), Sconto%(40), IVA%(40), Totale(80)
+				float[] colWidths = { 200, 70, 40, 40, 40, 80 };
 				float tableX = MARGIN;
 
 				tableYPosition = drawTableHeader(contents, tableX, tableYPosition, colWidths);
 
-				double subtotal = 0.0;
+				double subtotalNetto = 0.0; // Totale imponibile netto
+				double ivaTotaleMonetaria = 0.0; // Totale IVA monetaria
 
 				// Ciclo per disegnare le righe di dettaglio
 				for (Map.Entry<DettaglioOrdine, Prodotto> entry : dettagliConProdotti.entrySet()) {
 					DettaglioOrdine dettaglio = entry.getKey();
 					Prodotto prodotto = entry.getValue();
+					
+					// Recupera l'aliquota IVA dal DettaglioOrdine (come impostato nel Batch)
+					double ivaAliquota = dettaglio.getIvaStoricaApplicata();
 
 					// Gestione cambio pagina
 					if (tableYPosition < MARGIN + 50) {
@@ -112,16 +115,22 @@ public class FatturaService {
 						try (PDPageContentStream newContents = new PDPageContentStream(document, page)) {
 							tableYPosition = page.getMediaBox().getHeight() - MARGIN;
 							tableYPosition = drawTableHeader(newContents, tableX, tableYPosition, colWidths);
-							drawDetailRow(newContents, tableX, tableYPosition, colWidths, dettaglio, prodotto);
-							tableYPosition -= LEADING;
+							
+							double[] results = drawDetailRow(newContents, tableX, tableYPosition, colWidths, dettaglio, prodotto, percentualeSconto, ivaAliquota);
+							subtotalNetto += results[0];
+							ivaTotaleMonetaria += results[1];
+							tableYPosition = (float) results[2];
+							
 						}
 					} else {
-
-						tableYPosition = drawDetailRow(contents, tableX, tableYPosition, colWidths, dettaglio,
-								prodotto);
+						// 5. CHIAMATA A DRAW DETAIL ROW AGGIORNATA
+						double[] results = drawDetailRow(contents, tableX, tableYPosition, colWidths, dettaglio,
+								prodotto, percentualeSconto, ivaAliquota);
+						
+						subtotalNetto += results[0];
+						ivaTotaleMonetaria += results[1];
+						tableYPosition = (float) results[2];
 					}
-
-					subtotal += dettaglio.getTotaleRigaCalcolato();
 				}
 
 				yPosition = tableYPosition - LEADING * 3;
@@ -129,13 +138,16 @@ public class FatturaService {
 				// --- 4. SEZIONE RIEPILOGO FINALE ---
 				float summaryX = width - MARGIN - 150;
 
-				yPosition = drawSummaryLine(contents, "SUBTOTALE", String.format(Locale.ITALY, "€ %.2f", subtotal),
+				// Ora usiamo subtotalNetto e ivaTotaleMonetaria calcolati riga per riga
+				yPosition = drawSummaryLine(contents, "SUBTOTALE", String.format(Locale.ITALY, "€ %.2f", subtotalNetto),
 						summaryX, yPosition, PDType1Font.HELVETICA_BOLD);
-				double ivaTotale = ordine.getTotaleOrdineCalcolato() - subtotal;
-				yPosition = drawSummaryLine(contents, "IVA/Tax", String.format(Locale.ITALY, "€ %.2f", ivaTotale),
+				
+				yPosition = drawSummaryLine(contents, "IVA/Tax", String.format(Locale.ITALY, "€ %.2f", ivaTotaleMonetaria),
 						summaryX, yPosition, PDType1Font.HELVETICA);
+				
+				// TOTALE DOVUTO: somma dei due (deve coincidere con ordine.getTotaleOrdineCalcolato())
 				yPosition = drawSummaryLine(contents, "TOTAL DUE",
-						String.format(Locale.ITALY, "€ %.2f", ordine.getTotaleOrdineCalcolato()), summaryX, yPosition,
+						String.format(Locale.ITALY, "€ %.2f", subtotalNetto + ivaTotaleMonetaria), summaryX, yPosition,
 						PDType1Font.HELVETICA_BOLD, 12);
 
 				contents.close();
@@ -152,22 +164,27 @@ public class FatturaService {
 	private float drawTableHeader(PDPageContentStream contents, float x, float y, float[] colWidths)
 			throws IOException {
 		y -= LEADING;
-		contents.setNonStrokingColor(Color.BLACK); // Correzione deprecazione
+		contents.setNonStrokingColor(Color.BLACK);
 		contents.setFont(PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL);
 
 		float currentX = x;
 
+		// 1. DESCRIZIONE
 		contents.beginText();
 		contents.newLineAtOffset(currentX, y);
 		contents.showText("DESCRIZIONE");
 		contents.endText();
 		currentX += colWidths[0];
+		
+		// 2. PREZZO UNITARIO
 		contents.beginText();
 		contents.newLineAtOffset(currentX + colWidths[1]
-				- (getScaledStringWidth("PREZZO UN.", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)), y);
-		contents.showText("PREZZO UNITARIO");
+				- (getScaledStringWidth("P. UNITARIO", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)), y);
+		contents.showText("PREZZO UN.");
 		contents.endText();
 		currentX += colWidths[1];
+		
+		// 3. Q.TA'
 		contents.beginText();
 		contents.newLineAtOffset(
 				currentX + colWidths[2] - (getScaledStringWidth("Q.TA'", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)),
@@ -175,49 +192,94 @@ public class FatturaService {
 		contents.showText("Q.TA'");
 		contents.endText();
 		currentX += colWidths[2];
+		
+		// 4. SCONTO % (NUOVA COLONNA)
 		contents.beginText();
 		contents.newLineAtOffset(
-				currentX + colWidths[3] - (getScaledStringWidth("TOTALE", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)),
+				currentX + colWidths[3] - (getScaledStringWidth("SCONTO", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)),
+				y);
+		contents.showText("SCONTO");
+		contents.endText();
+		currentX += colWidths[3];
+		
+		// 5. IVA % (NUOVA COLONNA)
+		contents.beginText();
+		contents.newLineAtOffset(
+				currentX + colWidths[4] - (getScaledStringWidth("IVA", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)),
+				y);
+		contents.showText("IVA");
+		contents.endText();
+		currentX += colWidths[4];
+		
+		// 6. TOTALE
+		contents.beginText();
+		contents.newLineAtOffset(
+				currentX + colWidths[5] - (getScaledStringWidth("TOTALE", PDType1Font.HELVETICA_BOLD, FONT_SIZE_SMALL)),
 				y);
 		contents.showText("TOTALE");
 		contents.endText();
+		// currentX += colWidths[5]; // Non serve spostarlo oltre
 
 		y -= 2;
 		contents.setLineWidth(0.5f);
+		// La linea deve coprire tutte e 6 le colonne
+		float tableWidth = colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + colWidths[5];
 		contents.moveTo(MARGIN, y);
-		contents.lineTo(MARGIN + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], y);
+		contents.lineTo(MARGIN + tableWidth, y);
 		contents.stroke();
 
 		return y - LEADING;
 	}
 
-	private float drawDetailRow(PDPageContentStream contents, float x, float y, float[] colWidths,
-			DettaglioOrdine dettaglio, Prodotto prodotto) throws IOException {
+	// 3. FIRMA AGGIORNATA E TIPO DI RITORNO AGGIORNATO: Ritorna Imponibile, IVA Monetaria e Y
+	private double[] drawDetailRow(PDPageContentStream contents, float x, float y, float[] colWidths,
+			DettaglioOrdine dettaglio, Prodotto prodotto, int percentualeSconto, double ivaAliquota) throws IOException {
 
 		contents.setNonStrokingColor(Color.BLACK);
 		contents.setFont(PDType1Font.HELVETICA, FONT_SIZE_SMALL);
 
 		float currentX = x;
+		
+		// --- PREPARAZIONE DATI E CALCOLI ---
+		double moltiplicatoreIva = 1 + (ivaAliquota / 100.0);
+		double moltiplicatoreSconto = 1.0 - (percentualeSconto / 100.0);
+		
+		// Totale Lordo/IVATO finale della riga
+		double totaleRigaLordoScontato = dettaglio.getTotaleRigaCalcolato(); 
+		
+		// Calcolo Imponibile (Netto Scontato) e IVA Monetaria
+		double totaleRigaNettoScontato = totaleRigaLordoScontato / moltiplicatoreIva;
+		double ivaRigaMonetaria = totaleRigaLordoScontato - totaleRigaNettoScontato;
+		
+		// Calcolo Prezzo Unitario Netto NON scontato (per la visualizzazione di listino)
+		double prezzoUnitarioNettoScontato = (dettaglio.getQuantitaOrdinata() > 0)
+			? totaleRigaNettoScontato / dettaglio.getQuantitaOrdinata()
+			: 0.00;
+			
+		double prezzoUnitarioNettoNonScontato = (moltiplicatoreSconto > 0)
+			? prezzoUnitarioNettoScontato / moltiplicatoreSconto
+			: prezzoUnitarioNettoScontato;
 
-		double prezzoUnitario = (dettaglio.getQuantitaOrdinata() > 0)
-				? dettaglio.getTotaleRigaCalcolato() / dettaglio.getQuantitaOrdinata()
-				: 0.00;
 
+		// --- DISEGNO DELLE 6 COLONNE ---
+
+		// 1. DESCRIZIONE
 		contents.beginText();
 		contents.newLineAtOffset(currentX, y);
-
 		contents.showText(prodotto.getDescrizione());
 		contents.endText();
 		currentX += colWidths[0];
 
-		String sPrezzoUnitario = String.format(Locale.ITALY, "€ %.2f", prezzoUnitario);
+		// 2. PREZZO UNITARIO NETTO NON SCONTATO (Listino)
+		String sPrezzoUnitarioNetto = String.format(Locale.ITALY, "€ %.2f", prezzoUnitarioNettoNonScontato);
 		contents.beginText();
 		contents.newLineAtOffset(currentX + colWidths[1]
-				- (getScaledStringWidth(sPrezzoUnitario, PDType1Font.HELVETICA, FONT_SIZE_SMALL)), y);
-		contents.showText(sPrezzoUnitario);
+				- (getScaledStringWidth(sPrezzoUnitarioNetto, PDType1Font.HELVETICA, FONT_SIZE_SMALL)), y);
+		contents.showText(sPrezzoUnitarioNetto);
 		contents.endText();
 		currentX += colWidths[1];
 
+		// 3. QUANTITA'
 		String sQuantita = String.valueOf(dettaglio.getQuantitaOrdinata());
 		contents.beginText();
 		contents.newLineAtOffset(
@@ -226,15 +288,35 @@ public class FatturaService {
 		contents.endText();
 		currentX += colWidths[2];
 
-		String sTotaleRiga = String.format(Locale.ITALY, "€ %.2f", dettaglio.getTotaleRigaCalcolato());
+		// 4. SCONTO %
+		String sSconto = percentualeSconto > 0 ? (percentualeSconto + "%") : "0%";
 		contents.beginText();
-		contents.newLineAtOffset(
-				currentX + colWidths[3] - (getScaledStringWidth(sTotaleRiga, PDType1Font.HELVETICA, FONT_SIZE_SMALL)),
-				y);
+		contents.newLineAtOffset(currentX + colWidths[3] - getScaledStringWidth(sSconto, PDType1Font.HELVETICA, FONT_SIZE_SMALL), y);
+		if (percentualeSconto > 0) contents.setNonStrokingColor(Color.RED);
+		contents.showText(sSconto);
+		contents.setNonStrokingColor(Color.BLACK); 
+		contents.endText();
+		currentX += colWidths[3];
+
+		// 5. IVA %
+		String sIva = String.format(Locale.ITALY, "%.0f%%", ivaAliquota); 
+		contents.beginText();
+		contents.newLineAtOffset(currentX + colWidths[4] - getScaledStringWidth(sIva, PDType1Font.HELVETICA, FONT_SIZE_SMALL), y);
+		contents.showText(sIva);
+		contents.endText();
+		currentX += colWidths[4];
+
+		// 6. TOTALE RIGA (Finale Lordo/IVATO)
+		String sTotaleRiga = String.format(Locale.ITALY, "€ %.2f", totaleRigaLordoScontato);
+		contents.beginText();
+		contents.newLineAtOffset(currentX + colWidths[5] - getScaledStringWidth(sTotaleRiga, PDType1Font.HELVETICA, FONT_SIZE_SMALL),y);
 		contents.showText(sTotaleRiga);
 		contents.endText();
-
-		return y - LEADING;
+		
+		float newY = y - LEADING;
+		
+		// 4. RITORNO VALORI PER IL CUMULO
+		return new double[]{totaleRigaNettoScontato, ivaRigaMonetaria, newY};
 	}
 
 	private float drawSummaryLine(PDPageContentStream contents, String label, String value, float x, float y,

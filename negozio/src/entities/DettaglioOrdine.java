@@ -7,7 +7,8 @@ public class DettaglioOrdine {
 	private int codice_prodotto;
 	private int quantita_ordinata;
 	private double totale_riga_calcolato;
-	
+	private double ivaStoricaApplicata;
+
 	public DettaglioOrdine() {
 		super();
 	}
@@ -26,7 +27,8 @@ public class DettaglioOrdine {
 		this.codice_ordine = codiceOrdine;
 		this.progressivo = progressivo;
 		this.codice_prodotto = codiceProdotto;
-		this.quantita_ordinata = quantitaOrdinata;	}
+		this.quantita_ordinata = quantitaOrdinata;
+	}
 
 	public DettaglioOrdine(int codiceOrdine, int codiceProdotto, int quantitaOrdinata) {
 		this.codice_ordine = codiceOrdine;
@@ -72,6 +74,14 @@ public class DettaglioOrdine {
 
 	public void setTotaleRigaCalcolato(double totaleRigaCalcolato) {
 		this.totale_riga_calcolato = totaleRigaCalcolato;
+	}
+
+	public double getIvaStoricaApplicata() {
+		return ivaStoricaApplicata;
+	}
+
+	public void setIvaStoricaApplicata(double ivaStoricaApplicata) {
+		this.ivaStoricaApplicata = ivaStoricaApplicata;
 	}
 
 	@Override

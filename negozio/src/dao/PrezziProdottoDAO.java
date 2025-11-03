@@ -93,6 +93,46 @@ public class PrezziProdottoDAO {
 	        }
 	    }
 	}
+	
+	public PrezziProdotto recuperaPrezziValidiAllaData(int codiceProdotto, Date dataRiferimento, Connection conn) throws SQLException {
+	    PreparedStatement ps = null;
+	    ResultSet rs = null;
+	    
+	    // Cerca l'IVA e il prezzo dove la data di riferimento è compresa tra data_inizio e data_fine (inclusi).
+	    String sql = "SELECT codice_prodotto, data_inizio, data_fine, prezzo, iva FROM prezzi_prodotto WHERE codice_prodotto = ? AND ? BETWEEN data_inizio AND data_fine";
+
+	    try {
+	        // *** UTILIZZA LA CONNESSIONE PASSATA ***
+	        ps = conn.prepareStatement(sql); 
+	        
+	        ps.setInt(1, codiceProdotto);
+	        java.sql.Date sqlDataRiferimento = new java.sql.Date(dataRiferimento.getTime());
+	        ps.setDate(2, sqlDataRiferimento);
+	        
+	        rs = ps.executeQuery();
+
+	        if (rs.next()) {
+	            return new PrezziProdotto(
+	                rs.getInt("codice_prodotto"), 
+	                rs.getDate("data_inizio"), 
+	                rs.getDate("data_fine"), 
+	                rs.getDouble("prezzo"), 
+	                rs.getDouble("iva")
+	            );
+	        } else {
+	            return null;
+	        }
+	    } finally {
+	        // *** NON CHIUDERE LA CONNESSIONE (è gestita dal Batch) ***
+	        try {
+	            if (rs != null) rs.close();
+	            if (ps != null) ps.close();
+	        } catch (SQLException e) {
+	            e.printStackTrace();
+	        }
+	    }
+	}
+	
 
 	public PrezziProdotto recuperaUno(int codiceProdotto, Date dataInizio, Date dataFine) {
 
