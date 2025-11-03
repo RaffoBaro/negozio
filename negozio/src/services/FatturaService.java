@@ -99,7 +99,7 @@ public class FatturaService {
 
 				double subtotal = 0.0;
 
-				// Ciclo per disegnare le righe di dettaglio (Itera sulla mappa)
+				// Ciclo per disegnare le righe di dettaglio
 				for (Map.Entry<DettaglioOrdine, Prodotto> entry : dettagliConProdotti.entrySet()) {
 					DettaglioOrdine dettaglio = entry.getKey();
 					Prodotto prodotto = entry.getValue();
@@ -116,12 +116,12 @@ public class FatturaService {
 							tableYPosition -= LEADING;
 						}
 					} else {
-						// 🛑 CHIAMATA AGGIORNATA 🛑
+
 						tableYPosition = drawDetailRow(contents, tableX, tableYPosition, colWidths, dettaglio,
 								prodotto);
 					}
 
-					subtotal += dettaglio.getTotaleRigaCalcolato(); // Assumo questo metodo esista nel DettaglioOrdine
+					subtotal += dettaglio.getTotaleRigaCalcolato();
 				}
 
 				yPosition = tableYPosition - LEADING * 3;
@@ -147,11 +147,8 @@ public class FatturaService {
 		}
 	}
 
-	// =========================================================================
-	// METODI AUSILIARI PER PDFBOX (Disegno Tabella e Righe)
-	// =========================================================================
-
-	/** Disegna le intestazioni della tabella dei dettagli. */
+	// METODI AUSILIARI
+	// =================
 	private float drawTableHeader(PDPageContentStream contents, float x, float y, float[] colWidths)
 			throws IOException {
 		y -= LEADING;
@@ -194,10 +191,6 @@ public class FatturaService {
 		return y - LEADING;
 	}
 
-	/**
-	 * Disegna una riga di dettaglio. 🛑 FIRMA AGGIORNATA: ACCETTA IL PRODOTTO PER
-	 * LA DESCRIZIONE 🛑
-	 */
 	private float drawDetailRow(PDPageContentStream contents, float x, float y, float[] colWidths,
 			DettaglioOrdine dettaglio, Prodotto prodotto) throws IOException {
 
@@ -206,20 +199,17 @@ public class FatturaService {
 
 		float currentX = x;
 
-		// Uso i metodi corretti di DettaglioOrdine (quantita e totale riga)
 		double prezzoUnitario = (dettaglio.getQuantitaOrdinata() > 0)
 				? dettaglio.getTotaleRigaCalcolato() / dettaglio.getQuantitaOrdinata()
 				: 0.00;
 
-		// 1. Descrizione (Sinistra)
 		contents.beginText();
 		contents.newLineAtOffset(currentX, y);
-		// 🛑 USA ORA IL GETTER DELL'ENTITÀ PRODOTTO 🛑
+
 		contents.showText(prodotto.getDescrizione());
 		contents.endText();
 		currentX += colWidths[0];
 
-		// 2. Prezzo Un. (Destra)
 		String sPrezzoUnitario = String.format(Locale.ITALY, "€ %.2f", prezzoUnitario);
 		contents.beginText();
 		contents.newLineAtOffset(currentX + colWidths[1]
@@ -228,7 +218,6 @@ public class FatturaService {
 		contents.endText();
 		currentX += colWidths[1];
 
-		// 3. Q.TA' (Destra)
 		String sQuantita = String.valueOf(dettaglio.getQuantitaOrdinata());
 		contents.beginText();
 		contents.newLineAtOffset(
@@ -237,7 +226,6 @@ public class FatturaService {
 		contents.endText();
 		currentX += colWidths[2];
 
-		// 4. Totale (Destra)
 		String sTotaleRiga = String.format(Locale.ITALY, "€ %.2f", dettaglio.getTotaleRigaCalcolato());
 		contents.beginText();
 		contents.newLineAtOffset(
@@ -249,7 +237,6 @@ public class FatturaService {
 		return y - LEADING;
 	}
 
-	/** Disegna una riga di riepilogo (Subtotale/Totale). */
 	private float drawSummaryLine(PDPageContentStream contents, String label, String value, float x, float y,
 			PDType1Font font) throws IOException {
 		return drawSummaryLine(contents, label, value, x, y, font, FONT_SIZE_NORMAL);
@@ -258,14 +245,12 @@ public class FatturaService {
 	private float drawSummaryLine(PDPageContentStream contents, String label, String value, float x, float y,
 			PDType1Font font, float fontSize) throws IOException {
 
-		// Etichetta (Sinistra della colonna riepilogo)
 		contents.beginText();
 		contents.setFont(font, fontSize);
 		contents.newLineAtOffset(x, y);
 		contents.showText(label);
 		contents.endText();
 
-		// Valore (Destra della colonna riepilogo, allineato a destra)
 		float valueColWidth = 50;
 		float valueX = x + 100;
 
