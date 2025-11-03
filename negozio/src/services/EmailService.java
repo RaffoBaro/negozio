@@ -8,6 +8,8 @@ import jakarta.mail.internet.*;
 
 public class EmailService {
 
+	
+	// --- INVIO MAIL PER ALERT SCORTE ---
 	public static void inviaMessaggioAlert(String host, String port, String username, String password,
 			String adminEmail, String prodotto, int giacenzaAttuale, int sogliaMinima) {
 
@@ -49,8 +51,10 @@ public class EmailService {
 			e.printStackTrace();
 		}
 	}
+	
+	
 
-	// --- Metodo per invio mail con allegato (Fattura PDF) ---
+	// --- INVIO MAIL DI FATTURAZIONE ---
 	public static void inviaFatturazione(String host, String port, String username, String password,
 			String destinatario, String oggetto, String corpoTesto, String allegatoPath) throws MessagingException {
 

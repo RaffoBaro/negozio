@@ -3,21 +3,22 @@ package services;
 import entities.Ordine;
 import entities.Cliente;
 import entities.DettaglioOrdine;
-import entities.Prodotto; // Necessario per la mappa
-
+import entities.Prodotto;
 import java.util.Map;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
-
-// Import di APACHE PDFBOX
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import java.awt.Color; // Per risolvere l'avviso di deprecazione
+
+import dao.ConnessioneDB;
+import dao.FatturaDAO;
+
+import java.awt.Color;
 
 public class FatturaService {
 
@@ -29,15 +30,12 @@ public class FatturaService {
 
 	private float tableYPosition = 0;
 
-	/**
-	 * Creo il contenuto del PDF della fattura usando PDFBox.
-	 */
 	public byte[] creaFatturaPDFContent(Ordine ordine, Cliente cliente,
 
 			Map<DettaglioOrdine, Prodotto> dettagliConProdotti) throws Exception {
 
-		System.out.println("✅ Generazione contenuto PDF con layout grafico per Ordine " + ordine.getCodiceOrdine()
-				+ " (usando PDFBox)");
+		System.out.println("✅ Generazione contenuto PDF per Ordine " + ordine.getCodiceOrdine()
+				+ "\n");
 
 		try (PDDocument document = new PDDocument()) {
 			PDPage page = new PDPage();
@@ -79,7 +77,9 @@ public class FatturaService {
 				contents.beginText();
 				contents.setFont(PDType1Font.HELVETICA_BOLD, FONT_SIZE_NORMAL);
 				contents.newLineAtOffset(rightCol, yPosition);
-				contents.showText("Fattura n°: " + ordine.getCodiceOrdine());
+				Connection conn =  ConnessioneDB.getConnessione();
+				FatturaDAO fatturaDao = new FatturaDAO();
+				contents.showText("Fattura n°: " + fatturaDao.getNextProgressivo(conn));
 				contents.endText();
 				yPosition -= LEADING;
 				contents.beginText();

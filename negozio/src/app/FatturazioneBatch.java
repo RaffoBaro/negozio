@@ -25,7 +25,7 @@ import entities.DettaglioOrdine;
 public class FatturazioneBatch {
 
 	public static void main(String[] args) {
-		System.out.println("🚀 AVVIO PROGRAMMA BATCH DI FATTURAZIONE E INVIO MAIL");
+		System.out.println("🚀 AVVIO PROGRAMMA BATCH DI FATTURAZIONE E INVIO MAIL\n");
 
 		try {
 			OrdineDAO ordineDao = new OrdineDAO();
@@ -45,10 +45,6 @@ public class FatturazioneBatch {
 			final String SMTP_PORT = smtpConfig.get("SMTP_PORT");
 			final String SMTP_USER = smtpConfig.get("EMAIL_SENDER_USERNAME");
 			final String SMTP_PASS = smtpConfig.get("EMAIL_SENDER_PASSWORD");
-
-			System.out.println(smtpConfig);
-			
-			System.out.println("✅ Configurazione SMTP caricata: " + SMTP_HOST + ":" + SMTP_PORT);
 
 			
 			processaFatturazione(SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, ordineDao, clienteDao, fatturaDao,
@@ -71,7 +67,7 @@ public class FatturazioneBatch {
 		List<Ordine> ordiniDaFatturare = ordineDao.recuperaOrdiniDaFatturare(mainConn);
 		mainConn.close();
 
-		System.out.println("Trovati " + ordiniDaFatturare.size() + " ordini da fatturare.");
+		System.out.println("Trovati " + ordiniDaFatturare.size() + " ordini da fatturare.\n");
 
 		for (Ordine ordine : ordiniDaFatturare) {
 			int codiceOrdine = ordine.getCodiceOrdine();
@@ -149,8 +145,8 @@ public class FatturazioneBatch {
 						"La tua fattura n. " + anno + "/" + progressivo,
 						"In allegato trovi la tua fattura per l'ordine " + codiceOrdine + ".", tempPdfPath);
 
-				System.out.println("  ✅ Ordine " + codiceOrdine + " fatturato (ANNO:" + anno + ", PROGR.:" + progressivo
-						+ ") e email inviata.");
+				System.out.println("✅ Ordine " + codiceOrdine + " fatturato (ANNO:" + anno + ", PROGR.:" + progressivo
+						+ ") e email inviata.\n");
 
 			} catch (Exception e) {
 				System.err.println(
