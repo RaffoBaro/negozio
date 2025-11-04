@@ -39,7 +39,6 @@ public class OrdineService {
 			} else {
 				Formatter.stampaRigaFormattata("CODICE ORDINE", "CODICE CLIENTE", "DATA ORDINE",
 						"TOTALE ORDINE CALCOLATO", "FATTURATO");
-				
 
 				for (Ordine o : listaOrdini) {
 					Formatter.stampaRigaFormattata(String.valueOf(o.getCodiceOrdine()),
@@ -165,6 +164,12 @@ public class OrdineService {
 			Ordine o = dao.recuperaUno(codiceOrdine);
 
 			if (o != null) {
+
+				if (o.getFatturato() == true) {
+					System.err.println("Ordine evaso, impossibile modificare!");
+					return;
+				}
+				
 				System.out.println("Dimmi nuovo codice cliente dell'ordine");
 				int codiceCliente = scanner.nextInt();
 				scanner.nextLine();
@@ -230,6 +235,11 @@ public class OrdineService {
 			Ordine o = dao.recuperaUno(codiceOrdine);
 			boolean dettOrdCancellato = false;
 			if (o != null) {
+				
+				if (o.getFatturato() == true) {
+					System.err.println("Ordine evaso, impossibile cancellare!");
+					return;
+				} 
 
 				DettaglioOrdineDAO dettOrdDao = new DettaglioOrdineDAO();
 

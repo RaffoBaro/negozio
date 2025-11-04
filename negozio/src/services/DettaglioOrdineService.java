@@ -21,10 +21,6 @@ public class DettaglioOrdineService {
 
 	private Scanner scanner;
 	private DettaglioOrdineDAO dao;
-//	private OrdineDAO ordineDao;
-//	private ProdottoDAO prodottoDao;
-//	private CartaFedeltaDAO cartaFedeltaDao;
-//	private ScontiService scontiService;
 
 	public DettaglioOrdineService() {
 		this.dao = new DettaglioOrdineDAO();
@@ -105,7 +101,7 @@ public class DettaglioOrdineService {
 
 			OrdineService os = new OrdineService();
 			os.visualizzaOrdini();
-			
+
 			System.out.println("\nDimmi codice ordine associato:");
 			int codiceOrdine = scanner.nextInt();
 
@@ -115,7 +111,7 @@ public class DettaglioOrdineService {
 
 				ps = new ProdottoService();
 				ps.visualizzaProdotti();
-				
+
 				pps = new PrezziProdottoService();
 				pps.visualizzaPrezzi();
 
@@ -126,7 +122,8 @@ public class DettaglioOrdineService {
 				prodotto = prodottoDao.recuperaUno(codiceProdotto);
 
 				if (prodotto == null) {
-					System.err.println("❌ Prodotto non esistente, fornire un codice prodotto esistente. Inserimento annullato.");
+					System.err.println(
+							"❌ Prodotto non esistente, fornire un codice prodotto esistente. Inserimento annullato.");
 					return;
 				}
 
@@ -140,12 +137,11 @@ public class DettaglioOrdineService {
 				}
 
 				conn = ConnessioneDB.getConnessione();
-				conn.setAutoCommit(false); //inizio transazione
+				conn.setAutoCommit(false); // inizio transazione
 
 				int progressivo = dao.getNextProgressivo(codiceOrdine, conn);
 
 				DettaglioOrdine newDettaglio = new DettaglioOrdine(codiceOrdine, progressivo, codiceProdotto, quantita);
-				
 
 				boolean aggiunto = dao.aggiungi(newDettaglio, conn);
 
@@ -173,15 +169,15 @@ public class DettaglioOrdineService {
 					if (totaleOrdineAggiornato && qtaProdottoAggiornato && totaleRigaAggiornato) {
 
 						conn.commit(); // Commit se tutte le operazioni hanno successo
-						
-						//verifico scorta su prodotto aggiornato per valutare invio alert
+
+						// verifico scorta su prodotto aggiornato per valutare invio alert
 						Prodotto prodottoNew = prodottoDao.recuperaUno(codiceProdotto);
 						ps = new ProdottoService();
 						ps.verificaScorta(prodottoNew.getDescrizione(), prodottoNew.getQuantita());
-						
+
 						System.out.println(
 								"✅ Ordine completato: Dettaglio, Totale Ordine e quantita prodotti aggiornati.");
-						
+
 					} else {
 						conn.rollback(); // Rollback se una delle operazioni fallisce
 						System.out.println("❌ Errore critico: Operazione incompleta. Rollback generale.");
@@ -228,6 +224,16 @@ public class DettaglioOrdineService {
 
 			if (dettaglioDaModificare == null) {
 				System.out.println("⚠️ Nessun dettaglio ordine trovato con i codici forniti. Modifica annullata.");
+				return;
+			}
+
+			Ordine o = new Ordine();
+			OrdineDAO oDao = new OrdineDAO();
+
+			o = oDao.recuperaUno(dettaglioDaModificare.getCodiceOrdine());
+
+			if (o.getFatturato() == true) {
+				System.err.println("Ordine associato al dettaglio già evaso, impossibile modificare!");
 				return;
 			}
 
@@ -305,6 +311,17 @@ public class DettaglioOrdineService {
 			DettaglioOrdine dettOrd = dao.recuperaUno(codiceOrdine, progressivo);
 
 			if (dettOrd != null) {
+
+				Ordine o = new Ordine();
+				OrdineDAO oDao = new OrdineDAO();
+
+				o = oDao.recuperaUno(dettOrd.getCodiceOrdine());
+
+				if (o.getFatturato() == true) {
+					System.err.println("Ordine associato al dettaglio già evaso, impossibile modificare!");
+					return;
+				}
+
 				conn = ConnessioneDB.getConnessione();
 				conn.setAutoCommit(false);
 
